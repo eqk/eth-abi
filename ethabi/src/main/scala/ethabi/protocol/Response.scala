@@ -12,21 +12,29 @@ import ethabi.types.Address
 import ethabi.types.generated.Bytes32
 
 @JsonCodec(decodeOnly = true)
-final case class Response(jsonrpc: String, id: Id, result: Json, error: Option[ResponseError]) {
-  private val response: Either[ResponseError, Json] = if (error.isDefined) Left(error.get) else Right(result)
+final case class Response(jsonrpc: String, id: Id, result: Option[Json], error: Option[ResponseError]) {
+  private val response: Either[ResponseError, Json] = if (error.isDefined) Left(error.get) else Right(result.get)
 
   def convertTo[T: Decoder, F[_]: Sync]: F[T] = response match {
     case Right(json) =>
       json.as[T].fold(ApplicativeError[F, Throwable].raiseError, x => Applicative[F].pure(x))
-    case Left(e) => ApplicativeError[F, Throwable].raiseError(new RuntimeException(e.message))
+    case Left(e) => ApplicativeError[F, Throwable].raiseError(e)
   }
+
+  def as[T: Decoder, F[_]: Sync]: F[Either[ResponseError, T]] =
+    response match {
+      case Right(json) =>
+        json.as[T].fold(ApplicativeError[F, Throwable].raiseError, x => Applicative[F].pure(Right(x)))
+      case Left(e) => Applicative[F].pure(Left(e))
+    }
+
 }
 
 object Response {
   type FilterId = BigInt
 
   @JsonCodec(decodeOnly = true)
-  final case class ResponseError(code: Id, message: String, data: Option[Json])
+  final case class ResponseError(code: Id, message: String, data: Option[Json]) extends Throwable
 
   @JsonCodec(decodeOnly = true)
   final case class Syncing(startingBlock: Long, currentBlock: Long, highestBlock: Long)

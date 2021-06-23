@@ -6,6 +6,7 @@ import ethabi.util.Hash
 import ethabi.implicits._
 import ethabi.types.Address
 import Request._
+import ethabi.protocol.Response.ResponseError
 
 trait Client[F[_], Ret[_[_] <: F[_], *]] {
 
@@ -17,6 +18,8 @@ trait Client[F[_], Ret[_[_] <: F[_], *]] {
    * @return         a computation with effect type F
    */
   def doRequest[R: Decoder](request: Request): F[Ret[F, R]]
+
+  def doSafeRequest[R: Decoder](request: Request): F[Ret[F, Either[ResponseError, R]]]
 
   /**
    * @return ethereum client version, refer to https://eth.wiki/json-rpc/API#web3_clientversion
@@ -175,6 +178,8 @@ trait Client[F[_], Ret[_[_] <: F[_], *]] {
    * @note   account MUST be unlocked
    */
   final def sendTransaction(transaction: Transaction): F[Ret[F, Hash]] = doRequest[Hash](Request.sendTransaction(transaction))
+
+  final def sendTransactionSafe(transaction: Transaction): F[Ret[F, Either[ResponseError, Hash]]] = doSafeRequest[Hash](Request.sendTransaction(transaction))
 
   /**
    * @param data signed transaction data

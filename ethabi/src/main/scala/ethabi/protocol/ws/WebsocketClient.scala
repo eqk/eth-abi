@@ -7,6 +7,7 @@ import cats.effect._
 import cats.effect.concurrent._
 import cats.effect.implicits._
 import cats.implicits._
+import ethabi.protocol.Response.ResponseError
 import fs2.Stream
 import fs2.concurrent.Topic
 import io.circe.Decoder
@@ -93,6 +94,17 @@ object WebsocketClient {
           promise <- Deferred[F, R]
           _       <- conn.send(fromRequest(request.withId(id)))
           _       <- requestMap.update(_.updated(id, _.convertTo[R, F].flatMap(promise.complete)))
+        } yield promise
+      }
+
+      override def doSafeRequest[R: Decoder](request: Request): F[Deferred[F, Either[Response.ResponseError, R]]] = {
+        def nextId: F[Long] = requestId.getAndUpdate(_ + 1)
+
+        for {
+          id      <- nextId
+          promise <- Deferred[F, Either[ResponseError, R]]
+          _       <- conn.send(fromRequest(request.withId(id)))
+          _       <- requestMap.update(_.updated(id, _.as[R, F].flatMap(promise.complete)))
         } yield promise
       }
 

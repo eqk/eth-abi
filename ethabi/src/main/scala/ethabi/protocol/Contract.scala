@@ -45,6 +45,8 @@ trait Contract[F[_]] {
   // call contract method by eth_sendTransaction
   def sendTransaction(args: CallArgs): F[Deferred[F, Hash]]
 
+  def sendTransactionSafe(args: CallArgs): F[Deferred[F, Either[ResponseError, Hash]]]
+
   // call contract method by eth_call
   def call(args: CallArgs): F[Deferred[F, Array[Byte]]]
 
@@ -93,6 +95,13 @@ object Contract {
         _       <- assertNotNone[F, Address]("call contract by send transaction", address)
         transaction = Request.Transaction(from = args.sender, data = args.data, to = address, opt = args.opt)
         promise <- cli.sendTransaction(transaction)
+      } yield promise
+
+      override def sendTransactionSafe(args: CallArgs): F[Deferred[F, Either[ResponseError, Hash]]] = for {
+        address <- contractAddressR.get
+        _       <- assertNotNone[F, Address]("call contract by send transaction", address)
+        transaction = Request.Transaction(from = args.sender, data = args.data, to = address, opt = args.opt)
+        promise <- cli.sendTransactionSafe(transaction)
       } yield promise
 
       override def call(args: CallArgs): F[Deferred[F, Array[Byte]]] = for {

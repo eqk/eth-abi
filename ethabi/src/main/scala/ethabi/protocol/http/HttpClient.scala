@@ -51,6 +51,29 @@ object HttpClient {
         } yield result
 
       }
+
+      override def doSafeRequest[R: Decoder](request: Request): F[HttpResponse[F, Either[Response.ResponseError, R]]] = {
+        implicit val responseDecoder: EntityDecoder[F, Response] = circe.jsonOf[F, Response]
+        implicit val requestEncoder: EntityEncoder[F, Request] = circe.jsonEncoderOf[F, Request]
+
+        def nextId: F[Long] = requestId.getAndUpdate(_ + 1)
+
+        val requestF: Long => F[HttpRequest[F]] = id => Uri.fromString(endpoint).fold(
+          ApplicativeError[F, Throwable].raiseError,
+          uri => Applicative[F].pure(HttpRequest[F](
+            method = Method.POST,
+            headers = Headers.of(Header("Content-Type", "application/json")),
+            uri = uri,
+          ).withEntity(request.withId(id)))
+        )
+
+        for {
+          id       <- nextId
+          request  <- requestF(id)
+          response <- client.expect[Response](request)
+          result   <- response.as[R, F]
+        } yield result
+      }
     }
 
     Resource.liftF[F, HttpClient[F]](httpClient)

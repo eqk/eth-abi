@@ -2,7 +2,7 @@ import sbtassembly.AssemblyPlugin.defaultShellScript
 
 lazy val scala212 = "2.12.8"
 lazy val scala213 = "2.13.1"
-lazy val ethAbiVersion = "0.3.0"
+lazy val ethAbiVersion = "0.3.1-SNAPSHOT"
 
 def scalacOptionByVersion(version: String): Seq[String] = {
   val optional: Seq[String] =
